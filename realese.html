@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RELEASE — Lo que no dices, pesa.</title>
+
+<link rel="icon" type="image/png" href="logo.png">
+<link rel="apple-touch-icon" href="logo.png">
+
+<style>
+:root{
+    --white:#ffffff;
+    --soft:#f7f7f7;
+    --light:#e4e4e4;
+    --gray:#8f8f8f;
+    --dark:#1f1f1f;
+}
+
+*{
+    box-sizing:border-box;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+}
+
+body{margin:0;background:var(--soft);color:var(--dark);}
+
+.screen{display:none;min-height:100vh;}
+.screen.active{display:block;}
+
+.welcome{
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    padding:30px 20px;
+    background:var(--white);
+}
+
+h1{text-align:center;letter-spacing:4px;font-weight:500;}
+.subtitle{text-align:center;color:var(--gray);font-style:italic;}
+
+.logo{
+    display:block;
+    margin:22px auto 26px;
+    width:90px;
+    filter:drop-shadow(0 6px 12px rgba(0,0,0,.15));
+}
+
+.card{
+    max-width:420px;
+    margin:auto;
+    background:var(--white);
+    padding:26px;
+    border-radius:22px;
+    box-shadow:0 10px 30px rgba(0,0,0,.05);
+}
+
+input,textarea{
+    width:100%;
+    padding:14px;
+    margin-bottom:12px;
+    border-radius:14px;
+    border:1px solid var(--light);
+    background:var(--soft);
+}
+
+button{
+    width:100%;
+    padding:14px;
+    border-radius:30px;
+    border:none;
+    background:var(--dark);
+    color:var(--white);
+    cursor:pointer;
+}
+
+.link{text-align:center;color:var(--gray);cursor:pointer;margin-top:12px;}
+
+header{
+    position:sticky;
+    top:0;
+    background:var(--white);
+    border-bottom:1px solid var(--light);
+    padding:16px;
+    text-align:center;
+}
+
+.container{max-width:600px;margin:auto;padding:16px;}
+
+.post{
+    background:var(--white);
+    padding:18px;
+    border-radius:18px;
+    margin-bottom:20px;
+    box-shadow:0 6px 18px rgba(0,0,0,.04);
+}
+
+.reactions{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-top:12px;
+}
+
+.react{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    padding:6px 12px;
+    border-radius:20px;
+    background:var(--soft);
+    border:1px solid var(--light);
+    font-size:13px;
+    cursor:pointer;
+    transition:.25s;
+}
+
+.react.active{
+    background:var(--white);
+    border-color:var(--dark);
+    box-shadow:0 4px 10px rgba(0,0,0,.1);
+}
+</style>
+</head>
+
+<body>
+
+<!-- AUTH -->
+<div class="screen welcome active" id="authScreen">
+    <h1>RELEASE</h1>
+    <div class="subtitle">Lo que no dices, pesa.</div>
+    <img src="logo.png" class="logo">
+
+    <div class="card" id="registerCard">
+        <input id="alias" placeholder="Alias">
+        <input id="email" placeholder="Correo">
+        <input id="age" placeholder="Edad">
+        <input id="country" placeholder="País">
+        <input id="phone" placeholder="Teléfono">
+        <input id="password" type="password" placeholder="Contraseña">
+        <button onclick="register()">Crear cuenta</button>
+        <div class="link" onclick="showLogin()">Ya tengo cuenta</div>
+    </div>
+
+    <div class="card" id="loginCard" style="display:none">
+        <input id="loginAlias" placeholder="Alias">
+        <input id="loginPassword" type="password" placeholder="Contraseña">
+        <button onclick="login()">Entrar</button>
+        <div class="link" onclick="showRegister()">Crear cuenta</div>
+    </div>
+</div>
+
+<!-- MURO -->
+<div class="screen" id="appScreen">
+<header>
+    <h1>RELEASE</h1>
+    <p>¿Qué estás cargando hoy?</p>
+</header>
+
+<div class="container">
+    <div class="post">
+        <textarea id="postText" placeholder="Este es un lugar seguro."></textarea>
+        <button onclick="publish()">Soltar</button>
+    </div>
+    <div id="posts"></div>
+</div>
+</div>
+
+<script>
+let currentUser=null;
+
+function showLogin(){registerCard.style.display="none";loginCard.style.display="block";}
+function showRegister(){loginCard.style.display="none";registerCard.style.display="block";}
+
+function register(){
+    const u={alias:alias.value,email:email.value,age:age.value,country:country.value,phone:phone.value,pass:password.value};
+    for(let k in u){if(!u[k]) return alert("Completa todo");}
+    localStorage.setItem("releaseUser",JSON.stringify(u));
+    showLogin();
+}
+
+function login(){
+    const u=JSON.parse(localStorage.getItem("releaseUser"));
+    if(!u || u.alias!==loginAlias.value || u.pass!==loginPassword.value)
+        return alert("Datos incorrectos");
+    currentUser=u.alias;
+    authScreen.style.display="none";
+    appScreen.classList.add("active");
+    loadPosts();
+}
+
+function publish(){
+    if(!postText.value.trim()) return;
+    const posts=JSON.parse(localStorage.getItem("releasePosts"))||[];
+    posts.unshift({
+        text:postText.value,
+        date:new Date().toLocaleString(),
+        reactions:{igual:0,abrazo:0,duele:0,esperanza:0},
+        userReactions:{}
+    });
+    localStorage.setItem("releasePosts",JSON.stringify(posts));
+    postText.value="";
+    loadPosts();
+}
+
+function react(postIndex,type){
+    const posts=JSON.parse(localStorage.getItem("releasePosts"));
+    const post=posts[postIndex];
+    const prev=post.userReactions[currentUser];
+
+    if(prev){
+        post.reactions[prev]--;
+    }
+
+    post.reactions[type]++;
+    post.userReactions[currentUser]=type;
+
+    localStorage.setItem("releasePosts",JSON.stringify(posts));
+    loadPosts();
+}
+
+function loadPosts(){
+    const posts=JSON.parse(localStorage.getItem("releasePosts"))||[];
+    const c=document.getElementById("posts");
+    c.innerHTML="";
+    posts.forEach((p,i)=>{
+        const active=p.userReactions[currentUser];
+        c.innerHTML+=`
+        <div class="post">
+            <p>${p.text}</p>
+            <small>${p.date}</small>
+            <div class="reactions">
+                <div class="react ${active==='igual'?'active':''}" onclick="react(${i},'igual')">🤍 Me siento igual (${p.reactions.igual})</div>
+                <div class="react ${active==='abrazo'?'active':''}" onclick="react(${i},'abrazo')">🫂 Abrazo (${p.reactions.abrazo})</div>
+                <div class="react ${active==='duele'?'active':''}" onclick="react(${i},'duele')">😔 Duele (${p.reactions.duele})</div>
+                <div class="react ${active==='esperanza'?'active':''}" onclick="react(${i},'esperanza')">🌱 Esperanza (${p.reactions.esperanza})</div>
+            </div>
+        </div>`;
+    });
+}
+</script>
+
+</body>
+</html>
